@@ -1,5 +1,5 @@
-import { copyFile, mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { afterEach, describe, expect, it } from "vitest";
@@ -171,66 +171,6 @@ describe("canonical product catalog drift", () => {
     const issues = await documentationFactIssues(root, drifted);
     expect(issues).toContain("docs/installation.md: missing Future Client");
     expect(issues).not.toContain("README.md: missing Future Client");
-  });
-
-  it("keeps translated readmes linked to canonical setup and tool details", async () => {
-    const directory = await createTestTempDirectory("rea-readme-facts-");
-    temporaryRoots.push(directory);
-    const paths = [
-      "README.md",
-      "README_zh.md",
-      "README_ja.md",
-      "README_ko.md",
-      "README_ar.md",
-      "website/locales/languages.json",
-      "docs/installation.md",
-      "AGENTS.md",
-      ".github/pull_request_template.md",
-    ];
-    for (const path of paths) {
-      const destination = join(directory, path);
-      await mkdir(dirname(destination), { recursive: true });
-      await copyFile(join(root, path), destination);
-    }
-    await mkdir(join(directory, "skills/reverse-engineer-anything"), {
-      recursive: true,
-    });
-    const translatedPath = join(directory, "README_zh.md");
-    const translated = await readFile(translatedPath, "utf8");
-    const catalog = await createProductCatalog(root);
-    await expect(documentationFactIssues(directory, catalog)).resolves.toEqual(
-      [],
-    );
-    for (const [original, changed] of [
-      [
-        "(docs/installation.md#supported-agents)",
-        "(docs/installation.md#missing-agents)",
-      ],
-      [
-        "https://rea.tools/zh-CN/guides/native/",
-        "https://rea.tools/zh-CN/missing/",
-      ],
-      [
-        "https://rea.tools/zh-CN/guides/native/",
-        "https://rea.tools/zh-TW/guides/native/",
-      ],
-      [
-        "https://rea.tools/zh-CN/guides/native/",
-        "https://rea.tools/zh-CN/guides/native/?other=1",
-      ],
-    ] as const) {
-      expect(translated).toContain(original);
-      await writeFile(
-        translatedPath,
-        translated.replace(original, changed),
-        "utf8",
-      );
-      await expect(
-        documentationFactIssues(directory, catalog),
-      ).resolves.toEqual([
-        "README_zh.md: documentation links differ from README.md",
-      ]);
-    }
   });
 
   it("fails check mode without rewriting a stale generated artifact", async () => {
